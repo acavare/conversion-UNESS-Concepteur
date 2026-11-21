@@ -12,7 +12,7 @@ Le même éditeur conserve en revanche la mise en forme d'un contenu glissé-dé
 
 ## Utilisation
 
-L'application tient dans un seul fichier, `index.html`. On peut l'ouvrir en ligne à l'adresse https://acavare.github.io/UNESS-Concepteur-/, ou la télécharger (bouton « Code », puis « Download ZIP ») et ouvrir `index.html` d'un double-clic : elle fonctionne alors sans connexion.
+L'application tient dans un seul fichier, `index.html`. On peut l'ouvrir en ligne à l'adresse https://acavare.github.io/conversion-UNESS-Concepteur/, ou la télécharger (bouton « Code », puis « Download ZIP ») et ouvrir `index.html` d'un double-clic : elle fonctionne alors sans connexion.
 
 1. Déposez la fiche .docx dans le cadre, ou cliquez pour la choisir. Chaque intitulé apparaît sur une ligne, avec son code OIC, son rang et, s'il y en a une, sa rubrique.
 2. Dans Concepteur, onglet « Conception de mes ressources », ouvrez la ressource de l'intitulé.
