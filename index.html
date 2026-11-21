@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Word vers Uness Concepteur</title>
+<style>
+:root {
+  --fond: #f3f5f7;
+  --carte: #ffffff;
+  --texte: #1c232b;
+  --discret: #5a6470;
+  --trait: #d7dde4;
+  --accent: #9c4a00;
+  --accent-clair: #fbecdc;
+  --ok: #1d6f46;
+  --ok-clair: #e1f2e8;
+  --alerte: #7c5200;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--fond); color: var(--texte); font-family: "Segoe UI", system-ui, -apple-system, Arial, sans-serif; font-size: 16px; line-height: 1.5; }
+main { max-width: 860px; margin: 0 auto; padding: 28px 18px 32px; display: grid; gap: 18px; }
+h1 { margin: 0; font-size: 1.6rem; line-height: 1.2; }
+.intro { margin: -10px 0 0; color: var(--discret); }
+.depot { position: relative; display: grid; gap: 2px; justify-items: center; padding: 16px; border: 2px dashed var(--trait); border-radius: 10px; background: var(--carte); cursor: pointer; text-align: center; }
+.depot.survol { border-color: var(--accent); background: var(--accent-clair); }
+.depot span { color: var(--discret); font-size: 0.88rem; }
+.depot input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.depot:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; }
+.etat { margin: 0; font-size: 0.92rem; color: var(--discret); }
+.etat strong { color: var(--texte); }
+.etat.erreur { color: var(--alerte); font-weight: 700; }
+.liste { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.intitule { background: var(--carte); border: 1px solid var(--trait); border-radius: 10px; }
+.intitule.depose { border-color: var(--ok); }
+.ligne { display: flex; gap: 14px; align-items: center; justify-content: space-between; padding: 12px 14px; }
+@media (max-width: 560px) { .ligne { flex-direction: column; align-items: stretch; } }
+.infos { display: grid; gap: 4px; min-width: 0; }
+.etiquettes { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 0.78rem; }
+.code { font-family: Consolas, Menlo, monospace; padding: 1px 6px; border-radius: 6px; background: var(--fond); border: 1px solid var(--trait); }
+.rang { font-weight: 700; padding: 1px 7px; border-radius: 6px; background: var(--accent-clair); }
+.rubrique { color: var(--discret); }
+.fait { display: none; font-weight: 700; color: var(--ok); background: var(--ok-clair); padding: 1px 8px; border-radius: 999px; }
+.depose .fait { display: inline-block; }
+.titre { margin: 0; font-size: 1rem; line-height: 1.35; }
+.note { margin: 0; font-size: 0.85rem; color: var(--alerte); }
+.glisser { flex: none; padding: 9px 14px; border-radius: 8px; background: var(--accent); color: #fff; font-weight: 700; font-size: 0.92rem; cursor: grab; user-select: none; white-space: nowrap; text-align: center; }
+.glisser:focus-visible { outline: 3px solid var(--texte); outline-offset: 2px; }
+details { border-top: 1px solid var(--trait); }
+summary { cursor: pointer; padding: 8px 14px; font-size: 0.85rem; color: var(--discret); }
+.apercu { margin: 0 14px 14px; padding: 12px 16px; max-height: 420px; overflow: auto; background: #fff; border: 1px solid #b9c0c8; border-radius: 6px; font-family: Arial, Helvetica, sans-serif; font-size: 14px; line-height: 1.45; }
+.apercu h2, .apercu h3, .apercu h4 { margin: 14px 0 6px; line-height: 1.3; }
+.apercu h2 { font-size: 1.3em; } .apercu h3 { font-size: 1.12em; } .apercu h4 { font-size: 1em; }
+.apercu p { margin: 0 0 8px; }
+.apercu ul, .apercu ol { margin: 0 0 8px; padding-left: 26px; }
+.apercu ul { list-style-type: disc; } .apercu ul ul { list-style-type: circle; } .apercu ul ul ul { list-style-type: square; }
+.apercu table { border-collapse: collapse; margin: 6px 0 10px; width: 100%; }
+.apercu th, .apercu td { border: 1px solid #b9c0c8; padding: 4px 6px; vertical-align: top; text-align: left; }
+.apercu th { background: #eef0f2; }
+footer { margin-top: 8px; font-size: 0.75rem; color: var(--discret); text-align: center; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Word vers Uness Concepteur</h1>
+  <p class="intro">Déposez une fiche Word, puis faites glisser chaque intitulé dans le champ « Contenu de connaissance » de sa ressource.</p>
+  <label class="depot" id="depot" for="fichier">
+    <strong>Déposer la fiche .docx ici, ou cliquer pour la choisir</strong>
+    <span>Le fichier reste sur votre ordinateur.</span>
+    <input type="file" id="fichier" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
+  </label>
+  <p class="etat" id="etat" aria-live="polite">Aucune fiche chargée.</p>
+  <ol class="liste" id="liste"></ol>
+  <footer>© 2026 Anaïs Cavaré · Licence MIT · Outil indépendant, sans lien avec l'UNESS · Aucune donnée n'est envoyée</footer>
+</main>
+<script>
+"use strict";
+const W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
+const R = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
+const A = "http://schemas.openxmlformats.org/drawingml/2006/main";
+
+/* ---------- Lecture du zip (.docx) sans bibliothèque ---------- */
+function readZip(buf) {
+  const u8 = new Uint8Array(buf);
+  const dv = new DataView(buf);
+  let eocd = -1;
+  for (let i = u8.length - 22; i >= Math.max(0, u8.length - 65557); i--) {
+    if (dv.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
+  }
+  if (eocd < 0) throw new Error("zip");
+  const count = dv.getUint16(eocd + 10, true);
+  let p = dv.getUint32(eocd + 16, true);
+  const entries = {};
+  const dec = new TextDecoder("utf-8");
+  for (let n = 0; n < count; n++) {
+    if (dv.getUint32(p, true) !== 0x02014b50) throw new Error("zip");
+    const method = dv.getUint16(p + 10, true);
+    const csize = dv.getUint32(p + 20, true);
+    const nlen = dv.getUint16(p + 28, true);
+    const xlen = dv.getUint16(p + 30, true);
+    const clen = dv.getUint16(p + 32, true);
+    const off = dv.getUint32(p + 42, true);
+    const name = dec.decode(u8.subarray(p + 46, p + 46 + nlen));
+    entries[name] = { method, csize, off };
+    p += 46 + nlen + xlen + clen;
+  }
+  return { u8, dv, entries };
+}
+async function zipBytes(zip, name) {
+  const e = zip.entries[name];
+  if (!e) return null;
+  const nlen = zip.dv.getUint16(e.off + 26, true);
+  const xlen = zip.dv.getUint16(e.off + 28, true);
+  const start = e.off + 30 + nlen + xlen;
+  const data = zip.u8.subarray(start, start + e.csize);
+  if (e.method === 0) return data.slice();
+  if (e.method !== 8) throw new Error("compression");
+  const stream = new Blob([data]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
+  return new Uint8Array(await new Response(stream).arrayBuffer());
+}
+async function zipText(zip, name) {
+  const b = await zipBytes(zip, name);
+  return b ? new TextDecoder("utf-8").decode(b) : null;
+}
+function parseXml(text) {
+  const d = new DOMParser().parseFromString(text, "application/xml");
+  if (d.getElementsByTagName("parsererror").length) throw new Error("xml");
+  return d;
+}
+
+/* ---------- Petits utilitaires XML ---------- */
+function attr(el, name) {
+  if (!el) return null;
+  if (el.hasAttributeNS(W, name)) return el.getAttributeNS(W, name);
+  if (el.hasAttribute("w:" + name)) return el.getAttribute("w:" + name);
+  return null;
+}
+function kid(el, local) {
+  if (!el) return null;
+  for (const c of el.children) if (c.localName === local) return c;
+  return null;
+}
+function onOff(el) {
+  if (!el) return null;
+  const v = attr(el, "val");
+  if (v === null) return true;
+  return !["0", "false", "off", "none"].includes(v.toLowerCase());
+}
+function relId(el, name) {
+  return el.getAttributeNS(R, name) || el.getAttribute("r:" + name);
+}
+function parseRels(text) {
+  const map = {};
+  if (!text) return map;
+  const d = parseXml(text);
+  for (const r of d.getElementsByTagName("*")) {
+    if (r.localName === "Relationship") {
+      map[r.getAttribute("Id")] = {
+        type: r.getAttribute("Type") || "",
+        target: r.getAttribute("Target") || "",
+        mode: r.getAttribute("TargetMode") || ""
+      };
+    }
+  }
+  return map;
+}
+function resolvePath(base, target) {
+  if (target.startsWith("/")) return target.slice(1);
+  const out = [];
+  for (const part of (base + target).split("/")) {
+    if (part === "..") out.pop();
+    else if (part && part !== ".") out.push(part);
+  }
+  return out.join("/");
+}
+
+/* ---------- Ouverture du document ---------- */
+async function openDocx(buf) {
+  const zip = readZip(buf);
+  const rootRels = parseRels(await zipText(zip, "_rels/.rels"));
+  let main = "word/document.xml";
+  for (const id in rootRels) if (/\/officeDocument$/.test(rootRels[id].type)) main = resolvePath("", rootRels[id].target);
+  const baseDir = main.includes("/") ? main.slice(0, main.lastIndexOf("/") + 1) : "";
+  const rels = parseRels(await zipText(zip, baseDir + "_rels/" + main.slice(baseDir.length) + ".rels"));
+  const part = async (suffix) => {
+    for (const id in rels) {
+      if (rels[id].type.endsWith("/" + suffix)) {
+        const t = await zipText(zip, resolvePath(baseDir, rels[id].target));
+        return t ? parseXml(t) : null;
+      }
+    }
+    return null;
+  };
+  const docText = await zipText(zip, main);
+  if (!docText) throw new Error("document");
+  return {
+    zip, baseDir, rels,
+    doc: parseXml(docText),
+    styles: buildStyles(await part("styles")),
+    numbering: buildNumbering(await part("numbering")),
+    comments: await part("comments")
+  };
+}
+
+/* ---------- Styles, titres et numérotation ---------- */
+function buildStyles(d) {
+  const st = {};
+  if (!d) return st;
+  for (const s of d.getElementsByTagNameNS(W, "style")) {
+    const id = attr(s, "styleId");
+    if (!id) continue;
+    const pPr = kid(s, "pPr");
+    const rPr = kid(s, "rPr");
+    const numPr = kid(pPr, "numPr");
+    const ol = attr(kid(pPr, "outlineLvl"), "val");
+    const u = kid(rPr, "u");
+    st[id] = {
+      id,
+      name: attr(kid(s, "name"), "val") || "",
+      basedOn: attr(kid(s, "basedOn"), "val"),
+      outline: ol === null ? null : parseInt(ol, 10),
+      numId: numPr ? attr(kid(numPr, "numId"), "val") : null,
+      ilvl: numPr ? attr(kid(numPr, "ilvl"), "val") : null,
+      b: onOff(kid(rPr, "b")),
+      i: onOff(kid(rPr, "i")),
+      u: u ? (attr(u, "val") || "single") !== "none" : null
+    };
+  }
+  return st;
+}
+function chain(st, id) {
+  const out = [];
+  const seen = new Set();
+  while (id && st[id] && !seen.has(id)) { seen.add(id); out.push(st[id]); id = st[id].basedOn; }
+  return out;
+}
+function headingLevel(st, styleId, pPr) {
+  const direct = attr(kid(pPr, "outlineLvl"), "val");
+  if (direct !== null) {
+    const n = parseInt(direct, 10);
+    if (n >= 0 && n <= 8) return n + 1;
+  }
+  for (const s of chain(st, styleId)) {
+    const nm = s.name.toLowerCase().replace(/\s+/g, " ").trim();
+    let m = nm.match(/^(heading|titre|überschrift|titolo|título|kop)\s*(\d)$/);
+    if (m) return parseInt(m[2], 10);
+    m = s.id.match(/^(heading|titre)(\d)$/i);
+    if (m) return parseInt(m[2], 10);
+    if (nm === "title") return 1;
+    if (s.outline !== null && s.outline >= 0 && s.outline <= 8) return s.outline + 1;
+  }
+  return 0;
+}
+function buildNumbering(d) {
+  const nums = {};
+  const abs = {};
+  if (!d) return { nums, abs };
+  for (const a of d.getElementsByTagNameNS(W, "abstractNum")) abs[attr(a, "abstractNumId")] = a;
+  for (const n of d.getElementsByTagNameNS(W, "num")) {
+    const over = {};
+    for (const o of n.getElementsByTagNameNS(W, "lvlOverride")) {
+      const lvl = kid(o, "lvl");
+      if (lvl) over[attr(o, "ilvl")] = lvl;
+    }
+    nums[attr(n, "numId")] = { abs: attr(kid(n, "abstractNumId"), "val"), over };
+  }
+  return { nums, abs };
+}
+function numFormat(numbering, numId, ilvl) {
+  const n = numbering.nums[numId];
+  if (!n) return "bullet";
+  let lvl = n.over[String(ilvl)] || null;
+  if (!lvl) {
+    const a = numbering.abs[n.abs];
+    if (a) for (const l of a.getElementsByTagNameNS(W, "lvl")) if (attr(l, "ilvl") === String(ilvl)) { lvl = l; break; }
+  }
+  if (!lvl) return "bullet";
+  return attr(kid(lvl, "numFmt"), "val") || "decimal";
+}
+
+/* ---------- Contenu des paragraphes ---------- */
+function runFormat(ctx, rPr, pStyleId) {
+  const f = { b: false, i: false, u: false, sup: false, sub: false };
+  const apply = (s) => {
+    if (s.b !== null) f.b = s.b;
+    if (s.i !== null) f.i = s.i;
+    if (s.u !== null) f.u = s.u;
+  };
+  chain(ctx.styles, pStyleId).reverse().forEach(apply);
+  chain(ctx.styles, attr(kid(rPr, "rStyle"), "val")).reverse().forEach(apply);
+  if (rPr) {
+    const b = kid(rPr, "b"); if (b) f.b = onOff(b);
+    const i = kid(rPr, "i"); if (i) f.i = onOff(i);
+    const u = kid(rPr, "u"); if (u) f.u = (attr(u, "val") || "single") !== "none";
+    const va = attr(kid(rPr, "vertAlign"), "val");
+    if (va === "superscript") f.sup = true;
+    if (va === "subscript") f.sub = true;
+  }
+  return f;
+}
+function findImage(ctx, el) {
+  let rid = null;
+  const blips = el.getElementsByTagNameNS(A, "blip");
+  if (blips.length) rid = relId(blips[0], "embed");
+  if (!rid) for (const n of el.getElementsByTagName("*")) if (n.localName === "imagedata") { rid = relId(n, "id"); break; }
+  if (!rid) return null;
+  const rel = ctx.rels[rid];
+  if (!rel || rel.mode === "External") return null;
+  const img = { n: ctx.images.length + 1, path: resolvePath(ctx.baseDir, rel.target) };
+  ctx.images.push(img);
+  return img;
+}
+function runSegs(ctx, r, pStyleId, href, segs) {
+  const f = runFormat(ctx, kid(r, "rPr"), pStyleId);
+  const push = (text) => { if (text) segs.push({ text, b: f.b, i: f.i, u: f.u, sup: f.sup, sub: f.sub, href }); };
+  for (const c of r.children) {
+    switch (c.localName) {
+      case "t": push(c.textContent); break;
+      case "tab": case "ptab": push(" "); break;
+      case "br": { const t = attr(c, "type"); if (t !== "page" && t !== "column") segs.push({ br: true }); break; }
+      case "cr": segs.push({ br: true }); break;
+      case "noBreakHyphen": push("-"); break;
+      case "drawing": case "pict": case "object": { const img = findImage(ctx, c); if (img) segs.push({ img }); break; }
+      default: break;
+    }
+  }
+}
+function inlineSegs(ctx, p, pStyleId) {
+  const segs = [];
+  const walk = (node, href) => {
+    for (const c of node.children) {
+      switch (c.localName) {
+        case "r": runSegs(ctx, c, pStyleId, href, segs); break;
+        case "hyperlink": {
+          const rid = relId(c, "id");
+          let target = rid && ctx.rels[rid] ? ctx.rels[rid].target : null;
+          if (target && !/^(https?:|mailto:)/i.test(target)) target = null;
+          walk(c, target || href);
+          break;
+        }
+        case "ins": case "moveTo": walk(c, href); break;
+        case "smartTag": case "customXml": case "fldSimple": case "dir": case "bdo": walk(c, href); break;
+        case "sdt": { const sc = kid(c, "sdtContent"); if (sc) walk(sc, href); break; }
+        case "del": case "moveFrom": break; // texte supprimé en suivi des modifications
+        case "oMath": case "oMathPara": segs.push({ text: "[équation]" }); break;
+        default: break;
+      }
+    }
+  };
+  walk(p, null);
+  return segs;
+}
+function paraBlock(ctx, p) {
+  const pPr = kid(p, "pPr");
+  const styleId = attr(kid(pPr, "pStyle"), "val");
+  const segs = inlineSegs(ctx, p, styleId);
+  const markDeleted = !!kid(kid(pPr, "rPr"), "del");
+  const level = headingLevel(ctx.styles, styleId, pPr);
+  let numId = null;
+  let ilvl = 0;
+  const numPr = kid(pPr, "numPr");
+  if (numPr) {
+    numId = attr(kid(numPr, "numId"), "val");
+    ilvl = parseInt(attr(kid(numPr, "ilvl"), "val") || "0", 10);
+  } else {
+    for (const s of chain(ctx.styles, styleId)) if (s.numId) { numId = s.numId; ilvl = parseInt(s.ilvl || "0", 10); break; }
+  }
+  if (level) return { kind: "h", level, segs, markDeleted };
+  if (numId && numId !== "0") {
+    const fmt = numFormat(ctx.numbering, numId, ilvl);
+    if (fmt !== "none") return { kind: "li", type: fmt === "bullet" ? "ul" : "ol", numId, level: Math.min(ilvl, 8), segs, markDeleted };
+  }
+  return { kind: "p", segs, markDeleted };
+}
+function rowCells(tr) {
+  const out = [];
+  for (const c of tr.children) {
+    if (c.localName === "tc") out.push(c);
+    else if (c.localName === "sdt") { const sc = kid(c, "sdtContent"); if (sc) out.push(...rowCells(sc)); }
+    else if (c.localName === "customXml") out.push(...rowCells(c));
+  }
+  return out;
+}
+function tableRows(tbl) {
+  const out = [];
+  for (const c of tbl.children) {
+    if (c.localName === "tr") out.push(c);
+    else if (c.localName === "sdt") { const sc = kid(c, "sdtContent"); if (sc) out.push(...tableRows(sc)); }
+    else if (c.localName === "customXml") out.push(...tableRows(c));
+  }
+  return out;
+}
+function tableBlock(ctx, tbl) {
+  const rows = [];
+  const owners = {};
+  for (const tr of tableRows(tbl)) {
+    const trPr = kid(tr, "trPr");
+    const header = onOff(kid(trPr, "tblHeader")) === true;
+    let col = parseInt(attr(kid(trPr, "gridBefore"), "val") || "0", 10);
+    const row = [];
+    for (const tc of rowCells(tr)) {
+      const tcPr = kid(tc, "tcPr");
+      const span = Math.max(1, parseInt(attr(kid(tcPr, "gridSpan"), "val") || "1", 10));
+      const vm = kid(tcPr, "vMerge");
+      const vmVal = vm ? (attr(vm, "val") || "continue") : null;
+      if (vmVal === "continue" && owners[col]) { owners[col].rowspan++; col += span; continue; }
+      const cell = { blocks: bodyBlocks(ctx, tc), colspan: span, rowspan: 1, header };
+      for (let k = 0; k < span; k++) delete owners[col + k];
+      if (vmVal === "restart") owners[col] = cell;
+      row.push(cell);
+      col += span;
+    }
+    rows.push(row);
+  }
+  if (rows.length > 1 && rows[0].length && !rows[0].some((c) => c.header)) {
+    const segs = rows[0].flatMap((c) => c.blocks.flatMap((b) => b.segs || [])).filter((s) => s.text && s.text.trim());
+    if (segs.length && segs.every((s) => s.b)) rows[0].forEach((c) => { c.header = true; });
+  }
+  return { kind: "table", rows };
+}
+function bodyBlocks(ctx, container) {
+  const out = [];
+  const walk = (node) => {
+    for (const c of node.children) {
+      switch (c.localName) {
+        case "p": out.push(paraBlock(ctx, c)); break;
+        case "tbl": out.push(tableBlock(ctx, c)); break;
+        case "sdt": { const sc = kid(c, "sdtContent"); if (sc) walk(sc); break; }
+        case "customXml": case "ins": case "moveTo": walk(c); break;
+        default: break;
+      }
+    }
+  };
+  walk(container);
+  const merged = [];
+  for (let i = 0; i < out.length; i++) {
+    const b = out[i];
+    const next = out[i + 1];
+    if (b.markDeleted && next && next.segs) { next.segs = b.segs.concat(next.segs); continue; }
+    merged.push(b);
+  }
+  return merged;
+}
+
+/* ---------- Production du HTML nettoyé ---------- */
+function esc(s) { return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+function segText(segs) { return segs.map((s) => (s.text ? s.text : s.br ? " " : "")).join("").replace(/\s+/g, " ").trim(); }
+function sameFmt(a, b) { return a.b === b.b && a.i === b.i && a.u === b.u && a.sup === b.sup && a.sub === b.sub && a.href === b.href; }
+function segsHtml(segs, plain) {
+  const m = [];
+  for (const s of segs) {
+    const last = m[m.length - 1];
+    if (s.text !== undefined && last && last.text !== undefined && sameFmt(last, s)) last.text += s.text;
+    else m.push(Object.assign({}, s));
+  }
+  while (m.length && ((m[0].text !== undefined && !m[0].text.trim()) || m[0].br)) m.shift();
+  while (m.length && ((m[m.length - 1].text !== undefined && !m[m.length - 1].text.trim()) || m[m.length - 1].br)) m.pop();
+  if (m.length && m[0].text !== undefined) m[0].text = m[0].text.replace(/^\s+/, "");
+  if (m.length && m[m.length - 1].text !== undefined) m[m.length - 1].text = m[m.length - 1].text.replace(/\s+$/, "");
+  let h = "";
+  for (const s of m) {
+    if (s.br) { h += "<br>"; continue; }
+    if (s.img) { h += "[Image " + s.img.n + " : à insérer avec le bouton Image]"; continue; }
+    const t = esc(s.text.replace(/\s+/g, " "));
+    const lead = t.match(/^\s*/)[0];
+    const trail = t.slice(lead.length).match(/\s*$/)[0];
+    let core = t.slice(lead.length, t.length - trail.length);
+    if (!core) { h += t; continue; }
+    if (!plain) {
+      if (s.sup) core = "<sup>" + core + "</sup>";
+      else if (s.sub) core = "<sub>" + core + "</sub>";
+      if (s.u) core = "<u>" + core + "</u>";
+      if (s.i) core = "<em>" + core + "</em>";
+      if (s.b) core = "<strong>" + core + "</strong>";
+    }
+    if (s.href) core = '<a href="' + esc(s.href).replace(/"/g, "&quot;") + '">' + core + "</a>";
+    h += lead + core + trail;
+  }
+  return h;
+}
+function segPlain(segs) {
+  return segs.map((s) => (s.text ? s.text : s.img ? "[Image " + s.img.n + " : à insérer avec le bouton Image]" : s.br ? " " : "")).join("").replace(/\s+/g, " ").trim();
+}
+function blocksText(blocks) {
+  const out = [];
+  for (const b of blocks) {
+    if (!hasContent(b)) continue;
+    if (b.kind === "table") {
+      for (const row of b.rows) {
+        if (!row.length) continue;
+        out.push(row.map((c) => c.blocks.filter(hasContent).map((x) => (x.kind === "table" ? "" : segPlain(x.segs))).join(" ")).join(" | "));
+      }
+    } else {
+      out.push(segPlain(b.segs));
+    }
+  }
+  return out.join("\n\n");
+}
+function hasContent(b) {
+  if (b.kind === "table") return b.rows.some((r) => r.length);
+  return b.segs.some((s) => s.img || (s.text && s.text.trim()));
+}
+function renderBlocks(blocks, hmap) {
+  let h = "";
+  const stack = [];
+  const counters = {};
+  const closeTop = () => {
+    const top = stack.pop();
+    if (top.liOpen) h += "</li>";
+    h += "</" + top.type + ">";
+  };
+  const closeAll = () => { while (stack.length) closeTop(); };
+  for (const b of blocks) {
+    if (!hasContent(b)) continue;
+    if (b.kind === "li") {
+      const key = b.numId + ":" + b.level;
+      counters[key] = (counters[key] || 0) + 1;
+      for (const k in counters) {
+        const [nid, lv] = k.split(":");
+        if (nid === b.numId && parseInt(lv, 10) > b.level) delete counters[k];
+      }
+      while (stack.length > b.level + 1) closeTop();
+      if (stack.length === b.level + 1 && stack[b.level].type !== b.type) closeTop();
+      while (stack.length < b.level + 1) {
+        const parent = stack[stack.length - 1];
+        if (parent && !parent.liOpen) { h += "<li>"; parent.liOpen = true; }
+        const start = b.type === "ol" && stack.length === b.level && counters[key] > 1 ? ' start="' + counters[key] + '"' : "";
+        h += "<" + b.type + start + ">";
+        stack.push({ type: b.type, liOpen: false });
+      }
+      const top = stack[stack.length - 1];
+      if (top.liOpen) h += "</li>";
+      h += "<li>" + segsHtml(b.segs, false);
+      top.liOpen = true;
+      continue;
+    }
+    closeAll();
+    if (b.kind === "h") {
+      const lv = hmap(b.level);
+      h += "<h" + lv + ">" + segsHtml(b.segs, true) + "</h" + lv + ">";
+    } else if (b.kind === "p") {
+      h += "<p>" + segsHtml(b.segs, false) + "</p>";
+    } else if (b.kind === "table") {
+      h += renderTable(b, hmap);
+    }
+  }
+  closeAll();
+  return h;
+}
+function renderTable(t, hmap) {
+  let h = "<table><tbody>";
+  for (const row of t.rows) {
+    if (!row.length) continue;
+    h += "<tr>";
+    for (const c of row) {
+      const tag = c.header ? "th" : "td";
+      const at = (c.colspan > 1 ? ' colspan="' + c.colspan + '"' : "") + (c.rowspan > 1 ? ' rowspan="' + c.rowspan + '"' : "");
+      const bl = c.blocks.filter(hasContent);
+      let inner;
+      if (bl.every((b) => b.kind === "p" || b.kind === "h")) inner = bl.map((b) => segsHtml(b.segs, false)).join("<br>");
+      else inner = renderBlocks(bl, hmap);
+      h += "<" + tag + at + ">" + inner + "</" + tag + ">";
+    }
+    h += "</tr>";
+  }
+  return h + "</tbody></table>";
+}
+
+/* ---------- Niveaux des sous-titres ---------- */
+function headingMap(parts, start) {
+  const levels = new Set();
+  const scan = (bl) => bl.forEach((b) => {
+    if (b.kind === "h" && hasContent(b)) levels.add(b.level);
+  });
+  parts.forEach((p) => scan(p.blocks));
+  const sorted = [...levels].sort((a, b) => a - b);
+  const map = {};
+  sorted.forEach((lv, i) => { map[lv] = Math.min(6, start + i); });
+  return (lv) => map[lv] || Math.min(6, start + sorted.length);
+}
+
+/* ---------- Découpage par intitulé ---------- */
+// Un intitulé commence à chaque paragraphe dont le texte débute par « OIC- » (un « # » devant est accepté).
+// Sans ligne « OIC- », la fiche est découpée au niveau de titre Word le plus haut présent au moins deux fois.
+const OIC = /^\s*#*\s*OIC[-‐‑–]\S*/i;
+function decouper(blocs) {
+  let debuts = blocs
+    .map((b, i) => ((b.kind === "h" || b.kind === "p") && OIC.test(segText(b.segs)) ? i : -1))
+    .filter((i) => i >= 0);
+  if (!debuts.length) {
+    const compte = {};
+    blocs.forEach((b) => { if (b.kind === "h") compte[b.level] = (compte[b.level] || 0) + 1; });
+    const niveau = Object.keys(compte).map(Number).sort((a, b) => a - b).find((n) => compte[n] >= 2);
+    if (niveau) debuts = blocs.map((b, i) => (b.kind === "h" && b.level === niveau ? i : -1)).filter((i) => i >= 0);
+  }
+  if (!debuts.length) return [{ titre: null, blocs }];
+  // Tout ce qui précède le premier intitulé (en-tête de la fiche) est laissé de côté.
+  return debuts.map((d, k) => ({ titre: blocs[d], blocs: blocs.slice(d + 1, k + 1 < debuts.length ? debuts[k + 1] : blocs.length) }));
+}
+function lireTitre(texte) {
+  let t = texte.replace(/^\s*#+\s*/, "").trim();
+  let code = null;
+  let rang = null;
+  const m = t.match(/^(OIC[-‐‑–]\S+)\s+(.*)$/i);
+  if (m) { code = m[1]; t = m[2]; }
+  const r = t.match(/\s*\[([^\]]{1,6})\]\s*$/);
+  if (r) { rang = r[1]; t = t.slice(0, r.index).trim(); }
+  return { code, rang, libelle: t };
+}
+// La ligne « Rubrique : … » placée sous l'intitulé n'est pas déposée : Concepteur affiche déjà la rubrique.
+const RUBRIQUE = /^\s*Rubrique\s*:\s*(.+?)\s*$/i;
+function extraireRubrique(blocs) {
+  const i = blocs.findIndex(hasContent);
+  if (i >= 0 && (blocs[i].kind === "p" || blocs[i].kind === "h")) {
+    const m = segText(blocs[i].segs).match(RUBRIQUE);
+    if (m) return { rubrique: m[1], blocs: blocs.slice(0, i).concat(blocs.slice(i + 1)) };
+  }
+  return { rubrique: null, blocs };
+}
+// Les paragraphes tapés avec un tiret ou une puce en début de ligne deviennent une vraie liste à puces.
+const TIRET = /^\s*[-–•·]\s+/;
+function retirerDebut(segs, n) {
+  const sortie = [];
+  for (const s of segs) {
+    if (n > 0 && s.text !== undefined) {
+      const coupe = Math.min(n, s.text.length);
+      n -= coupe;
+      const reste = s.text.slice(coupe);
+      if (reste) sortie.push(Object.assign({}, s, { text: reste }));
+      continue;
+    }
+    sortie.push(s);
+  }
+  return sortie;
+}
+function listesATirets(blocs) {
+  return blocs.map((b) => {
+    if (b.kind !== "p") return b;
+    const debut = b.segs.map((s) => (s.text !== undefined ? s.text : "\u0000")).join("");
+    const m = debut.match(TIRET);
+    if (!m) return b;
+    return { kind: "li", type: "ul", numId: "tirets", level: 0, segs: retirerDebut(b.segs, m[0].length) };
+  });
+}
+
+/* ---------- Interface ---------- */
+const $ = (id) => document.getElementById(id);
+function el(balise, classe, texte) {
+  const e = document.createElement(balise);
+  if (classe) e.className = classe;
+  if (texte !== undefined) e.textContent = texte;
+  return e;
+}
+function afficherErreur(message) {
+  $("liste").innerHTML = "";
+  $("etat").className = "etat erreur";
+  $("etat").textContent = message;
+}
+async function chargerFiche(fichier) {
+  if (!fichier) return;
+  if (/\.doc$/i.test(fichier.name)) {
+    afficherErreur("Ce fichier est au format .doc. Ouvrez-le dans Word, enregistrez-le en .docx, puis déposez-le ici.");
+    return;
+  }
+  if (typeof DecompressionStream === "undefined") {
+    afficherErreur("Ce navigateur est trop ancien pour lire un .docx. Utilisez une version récente de Chrome, Edge, Firefox ou Safari.");
+    return;
+  }
+  try {
+    const ctx = await openDocx(await fichier.arrayBuffer());
+    ctx.images = [];
+    afficher(fichier.name, bodyBlocks(ctx, kid(ctx.doc.documentElement, "body")));
+  } catch (e) {
+    afficherErreur("Ce fichier ne se lit pas comme un document Word .docx. Enregistrez-le au format .docx puis réessayez.");
+  }
+}
+function afficher(nom, blocs) {
+  const parties = decouper(blocs).map((p) => {
+    const r = extraireRubrique(p.blocs);
+    return { titre: p.titre, rubrique: r.rubrique, blocs: listesATirets(r.blocs) };
+  });
+  const niveaux = headingMap(parties.map((p) => ({ blocks: p.blocs })), 2);
+  const etat = $("etat");
+  etat.className = "etat";
+  etat.innerHTML = "";
+  etat.append(el("strong", null, nom), " : " + parties.length + (parties.length > 1 ? " intitulés" : " intitulé"));
+  const liste = $("liste");
+  liste.innerHTML = "";
+  parties.forEach((partie, k) => {
+    const html = renderBlocks(partie.blocs, niveaux);
+    const texte = blocksText(partie.blocs);
+    const t = partie.titre ? lireTitre(segText(partie.titre.segs)) : { code: null, rang: null, libelle: nom };
+    const item = el("li", "intitule");
+    const ligne = el("div", "ligne");
+    const infos = el("div", "infos");
+    const etiquettes = el("div", "etiquettes");
+    if (t.code) etiquettes.appendChild(el("span", "code", t.code));
+    if (t.rang) etiquettes.appendChild(el("span", "rang", t.rang));
+    if (partie.rubrique) etiquettes.appendChild(el("span", "rubrique", partie.rubrique));
+    etiquettes.appendChild(el("span", "fait", "Déposé"));
+    infos.append(etiquettes, el("h2", "titre", t.libelle || "(sans titre)"));
+    const nbImages = (html.match(/\[Image \d+ :/g) || []).length;
+    if (nbImages) infos.appendChild(el("p", "note", nbImages + (nbImages > 1 ? " images à insérer avec le bouton Image" : " image à insérer avec le bouton Image")));
+    const poignee = el("span", "glisser", "⠿ Glisser dans Concepteur");
+    poignee.id = "glisser-" + (k + 1);
+    poignee.draggable = true;
+    poignee.tabIndex = 0;
+    poignee.setAttribute("role", "button");
+    poignee.setAttribute("aria-label", "Glisser le contenu de l'intitulé " + (k + 1) + " dans Concepteur");
+    ligne.append(infos, poignee);
+    const details = el("details");
+    details.appendChild(el("summary", null, "Voir le contenu"));
+    const apercu = el("div", "apercu");
+    apercu.innerHTML = html || "<p><em>Aucun contenu sous cet intitulé.</em></p>";
+    details.appendChild(apercu);
+    item.append(ligne, details);
+    liste.appendChild(item);
+    // Le contenu est transmis au glisser-déposer : Concepteur garde alors la mise en forme.
+    poignee.addEventListener("dragstart", (e) => {
+      e.dataTransfer.effectAllowed = "copy";
+      e.dataTransfer.setData("text/html", html);
+      e.dataTransfer.setData("text/plain", texte);
+    });
+    poignee.addEventListener("dragend", (e) => {
+      if (e.dataTransfer.dropEffect !== "none") item.classList.add("depose");
+    });
+  });
+}
+$("fichier").addEventListener("change", (e) => chargerFiche(e.target.files[0]));
+const depot = $("depot");
+["dragenter", "dragover"].forEach((ev) => depot.addEventListener(ev, (e) => { e.preventDefault(); depot.classList.add("survol"); }));
+["dragleave", "drop"].forEach((ev) => depot.addEventListener(ev, (e) => { e.preventDefault(); depot.classList.remove("survol"); }));
+depot.addEventListener("drop", (e) => chargerFiche(e.dataTransfer.files[0]));
+</script>
+</body>
+</html>
