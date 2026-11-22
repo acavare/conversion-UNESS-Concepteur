@@ -79,7 +79,7 @@ const W = "http://schemas.openxmlformats.org/wordprocessingml/2006/main";
 const R = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
 const A = "http://schemas.openxmlformats.org/drawingml/2006/main";
 
-/* ---------- Lecture du zip (.docx) sans bibliothèque ---------- */
+/* Lecture du .docx */
 function readZip(buf) {
   const u8 = new Uint8Array(buf);
   const dv = new DataView(buf);
@@ -127,8 +127,6 @@ function parseXml(text) {
   if (d.getElementsByTagName("parsererror").length) throw new Error("xml");
   return d;
 }
-
-/* ---------- Petits utilitaires XML ---------- */
 function attr(el, name) {
   if (!el) return null;
   if (el.hasAttributeNS(W, name)) return el.getAttributeNS(W, name);
@@ -174,7 +172,7 @@ function resolvePath(base, target) {
   return out.join("/");
 }
 
-/* ---------- Ouverture du document ---------- */
+/* Ouverture du doc */
 async function openDocx(buf) {
   const zip = readZip(buf);
   const rootRels = parseRels(await zipText(zip, "_rels/.rels"));
@@ -201,8 +199,6 @@ async function openDocx(buf) {
     comments: await part("comments")
   };
 }
-
-/* ---------- Styles, titres et numérotation ---------- */
 function buildStyles(d) {
   const st = {};
   if (!d) return st;
@@ -278,7 +274,7 @@ function numFormat(numbering, numId, ilvl) {
   return attr(kid(lvl, "numFmt"), "val") || "decimal";
 }
 
-/* ---------- Contenu des paragraphes ---------- */
+/* Contenu des paragraphes */
 function runFormat(ctx, rPr, pStyleId) {
   const f = { b: false, i: false, u: false, sup: false, sub: false };
   const apply = (s) => {
@@ -441,8 +437,6 @@ function bodyBlocks(ctx, container) {
   }
   return merged;
 }
-
-/* ---------- Production du HTML nettoyé ---------- */
 function esc(s) { return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
 function segText(segs) { return segs.map((s) => (s.text ? s.text : s.br ? " " : "")).join("").replace(/\s+/g, " ").trim(); }
 function sameFmt(a, b) { return a.b === b.b && a.i === b.i && a.u === b.u && a.sup === b.sup && a.sub === b.sub && a.href === b.href; }
@@ -566,7 +560,7 @@ function renderTable(t, hmap) {
   return h + "</tbody></table>";
 }
 
-/* ---------- Niveaux des sous-titres ---------- */
+/* Niveaux des sous-titres */
 function headingMap(parts, start) {
   const levels = new Set();
   const scan = (bl) => bl.forEach((b) => {
@@ -579,8 +573,8 @@ function headingMap(parts, start) {
   return (lv) => map[lv] || Math.min(6, start + sorted.length);
 }
 
-/* ---------- Découpage par intitulé ---------- */
-// Un intitulé commence à chaque paragraphe dont le texte débute par « OIC- » (un « # » devant est accepté).
+/* Découpage par intitulé  */
+// Un intitulé commence à chaque paragraphe dont le texte débute par « OIC- ».
 // Sans ligne « OIC- », la fiche est découpée au niveau de titre Word le plus haut présent au moins deux fois.
 const OIC = /^\s*#*\s*OIC[-‐‑–]\S*/i;
 function decouper(blocs) {
@@ -594,7 +588,6 @@ function decouper(blocs) {
     if (niveau) debuts = blocs.map((b, i) => (b.kind === "h" && b.level === niveau ? i : -1)).filter((i) => i >= 0);
   }
   if (!debuts.length) return [{ titre: null, blocs }];
-  // Tout ce qui précède le premier intitulé (en-tête de la fiche) est laissé de côté.
   return debuts.map((d, k) => ({ titre: blocs[d], blocs: blocs.slice(d + 1, k + 1 < debuts.length ? debuts[k + 1] : blocs.length) }));
 }
 function lireTitre(texte) {
@@ -607,7 +600,6 @@ function lireTitre(texte) {
   if (r) { rang = r[1]; t = t.slice(0, r.index).trim(); }
   return { code, rang, libelle: t };
 }
-// La ligne « Rubrique : … » placée sous l'intitulé n'est pas déposée : Concepteur affiche déjà la rubrique.
 const RUBRIQUE = /^\s*Rubrique\s*:\s*(.+?)\s*$/i;
 function extraireRubrique(blocs) {
   const i = blocs.findIndex(hasContent);
@@ -617,7 +609,6 @@ function extraireRubrique(blocs) {
   }
   return { rubrique: null, blocs };
 }
-// Les paragraphes tapés avec un tiret ou une puce en début de ligne deviennent une vraie liste à puces.
 const TIRET = /^\s*[-–•·]\s+/;
 function retirerDebut(segs, n) {
   const sortie = [];
@@ -643,7 +634,7 @@ function listesATirets(blocs) {
   });
 }
 
-/* ---------- Interface ---------- */
+/* Interface */
 const $ = (id) => document.getElementById(id);
 function el(balise, classe, texte) {
   const e = document.createElement(balise);
@@ -715,7 +706,6 @@ function afficher(nom, blocs) {
     details.appendChild(apercu);
     item.append(ligne, details);
     liste.appendChild(item);
-    // Le contenu est transmis au glisser-déposer : Concepteur garde alors la mise en forme.
     poignee.addEventListener("dragstart", (e) => {
       e.dataTransfer.effectAllowed = "copy";
       e.dataTransfer.setData("text/html", html);
